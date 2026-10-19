@@ -135,9 +135,10 @@ var _controls_initialized: bool
 @onready var _crouch_jump_tweak = SettingsManager.get_tweak("crouch_jumping", true)
 @onready var _immortal_tweak: bool = SettingsManager.get_tweak("immortal_mario", false)
 
-# Last position on solid ground, used to bring the player back from pits in immortal mode
-var _last_safe_position: Vector2
-var _has_safe_position: bool
+# Recent positions on solid ground, used to bring the player back from pits in immortal mode.
+# The oldest one (~0.5 s ago) is used, so the player does not reappear right at the pit's edge.
+const IMMORTAL_SAFE_HISTORY: int = 30
+var _safe_positions: Array[Vector2] = []
 
 @onready var force_override_death_sound: bool = false
 
@@ -539,17 +540,20 @@ func _update_immortal_state() -> void:
 		# Moving or falling platforms are not safe spots to come back to
 		var collider := col.get_collider()
 		if collider is StaticBody2D || collider is TileMapLayer:
-			_last_safe_position = global_position
-			_has_safe_position = true
+			_safe_positions.append(global_position)
+			if _safe_positions.size() > IMMORTAL_SAFE_HISTORY:
+				_safe_positions.pop_front()
 			return
 
 
-## Brings the player back to the last solid ground after falling into a pit
+## Brings the player back to solid ground after falling into a pit
 func immortal_respawn() -> void:
-	if !_has_safe_position:
+	if _safe_positions.is_empty():
 		speed.y = -1200
 		return
-	global_position = _last_safe_position
+	var safe_position: Vector2 = _safe_positions[0]
+	_safe_positions = [safe_position]
+	global_position = safe_position
 	speed = Vector2.ZERO
 	reset_physics_interpolation()
 	sync_position()
