@@ -8,5 +8,5 @@ func execute(args:Array) -> Command.ExecuteResult:
 	if !player:
 		return Command.ExecuteResult.new("ERROR: No player is available!")
 	
-	player.die()
+	player.die({&"immortal_bypass": true})
 	return Command.ExecuteResult.new("Success")

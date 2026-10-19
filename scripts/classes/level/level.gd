@@ -171,7 +171,9 @@ func _physics_process(delta: float) -> void:
 		return
 	match falling_below_screen_action:
 		1:
-			if !Console.cv.get("starman_pit_bounce", false):
+			if player.is_immortal():
+				player.immortal_respawn()
+			elif !Console.cv.get("starman_pit_bounce", false):
 				player.die()
 			else:
 				player.speed.y = -1200

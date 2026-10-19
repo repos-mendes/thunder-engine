@@ -133,6 +133,11 @@ var _controls_initialized: bool
 @onready var _super_jump_tweak = SettingsManager.get_tweak("super_jump_bug", false)
 @warning_ignore("unused_private_class_variable")
 @onready var _crouch_jump_tweak = SettingsManager.get_tweak("crouch_jumping", true)
+@onready var _immortal_tweak: bool = SettingsManager.get_tweak("immortal_mario", false)
+
+# Last position on solid ground, used to bring the player back from pits in immortal mode
+var _last_safe_position: Vector2
+var _has_safe_position: bool
 
 @onready var force_override_death_sound: bool = false
 
@@ -231,6 +236,9 @@ func _physics_process(delta: float) -> void:
 
 	if _stomping_combo_enabled && stomping_combo.get_combo() > 0 && is_on_floor():
 		stomping_combo.reset_combo()
+
+	if is_immortal():
+		_update_immortal_state()
 	
 	if !_controls_initialized:
 		_controls_initialized = true
@@ -379,7 +387,7 @@ func starman(duration: float = 10) -> void:
 
 var is_hurting: bool = false
 func hurt(tags: Dictionary = {}, override_behavior: Callable = Callable()) -> void:
-	if !suit || debug_god || is_hurting:
+	if !suit || debug_god || is_hurting || _blocks_by_immortality(tags):
 		return
 	if !tags.get(&"hurt_forced", false) && (is_invincible() || completed || warp > Warp.NONE):
 		return
@@ -408,6 +416,7 @@ func die(tags: Dictionary = {}, override_behavior: Callable = Callable()) -> voi
 	if warp != Warp.NONE: return
 	if debug_god: return
 	if is_dying: return
+	if _blocks_by_immortality(tags): return
 
 	if override_behavior.is_valid():
 		override_behavior.call(tags)
@@ -503,3 +512,46 @@ func _on_settings_updated() -> void:
 
 func _on_tweaks_updated() -> void:
 	_autorun_tweak = SettingsManager.get_tweak("autorun", false)
+	_immortal_tweak = SettingsManager.get_tweak("immortal_mario", false)
+	if !_immortal_tweak:
+		attack.enabled = is_starman() || is_sliding
+
+
+#= Immortal mode
+func is_immortal() -> bool:
+	return _immortal_tweak
+
+
+## Bypassed only by intentional deaths (restart from pause, console "kill")
+func _blocks_by_immortality(tags: Dictionary) -> bool:
+	return is_immortal() && !tags.get(&"immortal_bypass", false)
+
+
+func _update_immortal_state() -> void:
+	# Enemies die on touch, like with a Starman
+	attack.enabled = true
+	if warp != Warp.NONE || !is_on_floor():
+		return
+	for i in get_slide_collision_count():
+		var col := get_slide_collision(i)
+		if col.get_normal().dot(up_direction) < 0.7:
+			continue
+		# Moving or falling platforms are not safe spots to come back to
+		var collider := col.get_collider()
+		if collider is StaticBody2D || collider is TileMapLayer:
+			_last_safe_position = global_position
+			_has_safe_position = true
+			return
+
+
+## Brings the player back to the last solid ground after falling into a pit
+func immortal_respawn() -> void:
+	if !_has_safe_position:
+		speed.y = -1200
+		return
+	global_position = _last_safe_position
+	speed = Vector2.ZERO
+	reset_physics_interpolation()
+	sync_position()
+	invincible(2)
+	Audio.play_sound(suit.sound_hurt, self, false, {pitch = suit.sound_pitch})

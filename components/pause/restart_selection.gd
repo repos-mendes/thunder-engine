@@ -62,4 +62,4 @@ func _handle_select(mouse_input: bool = false) -> void:
 	super()
 	Scenes.custom_scenes.pause._no_unpause = false
 	pause.toggle()
-	player.die()
+	player.die({&"immortal_bypass": true})

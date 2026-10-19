@@ -29,7 +29,11 @@ func _on_body_entered(body: Node2D) -> void:
 	if !is_instance_valid(body) || body.is_queued_for_deletion():
 		return
 	if body == Thunder._current_player:
-		if !body.is_starman():
+		# Immortal mode: lava acts like water and nothing happens
+		if body.is_immortal():
+			if body.has_node("Underwater") && !body.get(&"is_underwater"):
+				body.get_node("Underwater").in_water()
+		elif !body.is_starman():
 			body.die()
 		elif body.has_node("Underwater") && !body.get(&"is_underwater"):
 			var underwater: Node = body.get_node("Underwater")
@@ -47,7 +51,7 @@ func _on_body_entered(body: Node2D) -> void:
 func _on_body_exited(body: Node2D) -> void:
 	if !is_instance_valid(body) || body.is_queued_for_deletion():
 		return
-	if body == Thunder._current_player && body.is_starman() && body.has_node("Underwater") && body.get(&"is_underwater"):
+	if body == Thunder._current_player && (body.is_starman() || body.is_immortal()) && body.has_node("Underwater") && body.get(&"is_underwater"):
 		var underwater: Node = body.get_node("Underwater")
 		underwater.out_of_water()
 		Thunder._disconnect(body.timer_starman.timeout, _player_death_after_starman)
@@ -70,5 +74,5 @@ func _player_death_after_starman() -> void:
 	if !pl || pl.completed: return
 	if get_overlapping_bodies().has(pl):
 		await get_tree().physics_frame
-		if !is_instance_valid(pl): return
+		if !is_instance_valid(pl) || pl.is_immortal(): return
 		pl.die()
