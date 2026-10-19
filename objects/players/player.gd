@@ -134,6 +134,10 @@ var _controls_initialized: bool
 @warning_ignore("unused_private_class_variable")
 @onready var _crouch_jump_tweak = SettingsManager.get_tweak("crouch_jumping", true)
 @onready var _immortal_tweak: bool = SettingsManager.get_tweak("immortal_mario", false)
+@onready var _double_jump_tweak: bool = SettingsManager.get_tweak("double_jump", false)
+
+## Whether the mid-air jump of the "double_jump" tweak is still available
+var double_jump_ready: bool = true
 
 # Recent positions on solid ground, used to bring the player back from pits in immortal mode.
 # The oldest one (~0.5 s ago) is used, so the player does not reappear right at the pit's edge.
@@ -514,6 +518,7 @@ func _on_settings_updated() -> void:
 func _on_tweaks_updated() -> void:
 	_autorun_tweak = SettingsManager.get_tweak("autorun", false)
 	_immortal_tweak = SettingsManager.get_tweak("immortal_mario", false)
+	_double_jump_tweak = SettingsManager.get_tweak("double_jump", false)
 	if !_immortal_tweak:
 		attack.enabled = is_starman() || is_sliding
 

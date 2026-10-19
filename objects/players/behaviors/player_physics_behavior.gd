@@ -65,6 +65,8 @@ func _physics_process(delta: float) -> void:
 		player.coyote_time = move_toward(player.coyote_time, 0.0, delta)
 	elif can_coyote && config:
 		player.coyote_time = config.jump_coyote_time_sec
+	if player.is_on_floor() || player.is_underwater || player.is_climbing:
+		player.double_jump_ready = true
 	player.running_grace = move_toward(player.running_grace, 0.0, delta)
 	if player.is_on_slope() && player.is_on_wall() && (player.get_which_wall_collided() == sign(player.left_right)) && abs(player.speed.x) < 70:
 		player.speed.x = 0
@@ -272,6 +274,8 @@ func _movement_y(delta: float) -> void:
 					player.crouch_forced = player.up_down > 0
 				var _sndfx: AudioStream = config.sound_jump[randi_range(0, len(config.sound_jump) - 1)]
 				Audio.play_sound(_sndfx, player, false, {pitch = suit.sound_pitch})
+		elif player.jumped && _can_double_jump():
+			_double_jump(delta)
 		elif player.jumping > 0:
 			var buff: float = _calculate_jump_acceleration()
 			if player.speed.y < 0.0:
@@ -286,6 +290,23 @@ func _movement_y(delta: float) -> void:
 		Thunder.autosplitter.update_il_counter()
 	if !player.jumping && player.speed.y >= 0:
 		player._has_jumped = false
+
+
+func _can_double_jump() -> bool:
+	return player._double_jump_tweak && player.double_jump_ready && !player.is_crouching
+
+
+## Second jump in mid-air, recharged when touching the ground
+func _double_jump(delta: float) -> void:
+	_stop_sliding_movement()
+	player.double_jump_ready = false
+	player._has_jumped = true
+	player.ghost_speed_y = 0.0
+	player.jump(config.jump_speed + abs(_calculate_jump_acceleration() * delta * 0.5))
+	player.jumped_signal.emit()
+	var _sndfx: AudioStream = config.sound_jump[randi_range(0, len(config.sound_jump) - 1)]
+	# Higher pitch to tell it apart from the regular jump
+	Audio.play_sound(_sndfx, player, false, {pitch = suit.sound_pitch * 1.25})
 
 
 func _calculate_jump_acceleration() -> float:
