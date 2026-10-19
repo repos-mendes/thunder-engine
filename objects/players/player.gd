@@ -536,7 +536,11 @@ func _blocks_by_immortality(tags: Dictionary) -> bool:
 func _update_immortal_state() -> void:
 	# Enemies die on touch, like with a Starman
 	attack.enabled = true
-	if warp != Warp.NONE || !is_on_floor():
+	# A pipe can lead to another area: old safe spots must not bring the player back there
+	if warp != Warp.NONE:
+		_safe_positions.clear()
+		return
+	if !is_on_floor():
 		return
 	for i in get_slide_collision_count():
 		var col := get_slide_collision(i)
@@ -553,6 +557,9 @@ func _update_immortal_state() -> void:
 
 ## Brings the player back to solid ground after falling into a pit
 func immortal_respawn() -> void:
+	# Pipes can briefly place the player below the screen, like die() this must be ignored
+	if warp != Warp.NONE:
+		return
 	if _safe_positions.is_empty():
 		speed.y = -1200
 		return
